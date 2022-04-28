@@ -128,7 +128,7 @@ CG scale with 3 Loadcells:
 #define TIMEOUT_CONNECT             25000   //ms
 
 // Access point mode: create own network
-#define SSID_AP                     "CG scale"
+#define SSID_AP                     "CGScale"
 #define PASSWORD_AP                 ""
 const char ip[4] =                  {10,2,1,2};    // default IP address
 

@@ -91,30 +91,31 @@
 
 // libraries for ESP8266
 #if defined(ESP8266)
-#include <FS.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <WiFiClientSecure.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
-#include <ElegantOTA.h>
-#include <ArduinoJson.h>
+  #include <FS.h>
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WebServer.h>
+  #include <WiFiClientSecure.h>
+  #include <ESP8266HTTPClient.h>
+  #include <ESP8266mDNS.h>
+  #include <WiFiUdp.h>
+  #include <ArduinoOTA.h>
+  #include <ElegantOTA.h>
+  #include <ArduinoJson.h>
 #endif
 
 // libraries for ESP32
 #if defined(ESP32)
-#include <FS.h>
-/*#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <WiFiClientSecure.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
-#include <ElegantOTA.h>
-#include <ArduinoJson.h>*/
+  #include <FS.h>
+  #include <SPIFFS.h>
+  #include <WiFi.h>
+  #include <WebServer.h>
+  #include <WiFiClientSecure.h>
+  #include <HTTPClient.h>
+  #include <ESPmDNS.h>
+  #include <WiFiUdp.h>
+  #include <ArduinoOTA.h>
+  #include <ElegantOTA.h>
+  #include <ArduinoJson.h>
 #endif
 
 // load settings
@@ -127,7 +128,7 @@
     #include "settings_ESP8266.h"
   #endif
 #elif defined(ESP32)
-#include "settings_ESP32.h"
+  #include "settings_ESP32.h"
 #endif
 
 // default settings
@@ -145,11 +146,15 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C oledDisplay(U8G2_R0, /* clock=*/ 26, /* data
 HX711_ADC LoadCell[] {HX711_ADC(PIN_LOADCELL1_DOUT, PIN_LOADCELL1_PD_SCK), HX711_ADC(PIN_LOADCELL2_DOUT, PIN_LOADCELL2_PD_SCK), HX711_ADC(PIN_LOADCELL3_DOUT, PIN_LOADCELL3_PD_SCK)};
 
 // webserver constructor
-#if defined(ESP8266)
-ESP8266WebServer server(80);
-IPAddress apIP(ip[0], ip[1], ip[2], ip[3]);
-WiFiClientSecure httpsClient;
-File fsUploadFile;              // a File object to temporarily store the received file
+#if defined(ESP8266) || defined(ESP32)
+  #ifdef ESP8266
+    ESP8266WebServer server(80);
+  #else
+    WebServer server(80);
+  #endif
+  IPAddress apIP(ip[0], ip[1], ip[2], ip[3]);
+  WiFiClientSecure httpsClient;
+  File fsUploadFile;              // a File object to temporarily store the received file
 #endif
 
 
@@ -162,7 +167,7 @@ struct VirtualWeight {
 
 struct Model {
   float distance[3] = {DISTANCE_X1, DISTANCE_X2, DISTANCE_X3};
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
   char name[MAX_MODELNAME_LENGHT + 1] = "";
   float targetCGmin = 0;
   float targetCGmax = 0;
@@ -181,13 +186,13 @@ uint8_t batType = BAT_TYPE;
 uint8_t batCells = BAT_CELLS;
 float refWeight = REF_WEIGHT;
 float refCG = REF_CG;
-#if defined(ESP8266)
-char ssid_STA[MAX_SSID_PW_LENGHT + 1] = SSID_STA;
-char password_STA[MAX_SSID_PW_LENGHT + 1] = PASSWORD_STA;
-char ssid_AP[MAX_SSID_PW_LENGHT + 1] = SSID_AP;
-char password_AP[MAX_SSID_PW_LENGHT + 1] = PASSWORD_AP;
-bool enableUpdate = ENABLE_UPDATE;
-bool enableOTA = ENABLE_OTA;
+#if defined(ESP8266) || defined(ESP32)
+  char ssid_STA[MAX_SSID_PW_LENGHT + 1] = SSID_STA;
+  char password_STA[MAX_SSID_PW_LENGHT + 1] = PASSWORD_STA;
+  char ssid_AP[MAX_SSID_PW_LENGHT + 1] = SSID_AP;
+  char password_AP[MAX_SSID_PW_LENGHT + 1] = PASSWORD_AP;
+  bool enableUpdate = ENABLE_UPDATE;
+  bool enableOTA = ENABLE_OTA;
 #endif
 
 // declare variables
@@ -209,18 +214,18 @@ const uint8_t *oledFontLarge;
 const uint8_t *oledFontNormal;
 const uint8_t *oledFontSmall;
 const uint8_t *oledFontTiny;
-#if defined(ESP8266)
-String updateMsg = "";
-bool wifiSTAmode = true;
-float gitVersion = -1;
+#if defined(ESP8266) || defined(ESP32)
+  String updateMsg = "";
+  bool wifiSTAmode = true;
+  float gitVersion = -1;
 #endif
 
 
 // Restart CPU
 #if defined(__AVR__)
-void(* resetCPU) (void) = 0;
+  void(* resetCPU) (void) = 0;
 #elif defined(ESP8266) || defined(ESP32)
-void resetCPU() {}
+  void resetCPU() {}
 #endif
 
 
@@ -566,7 +571,7 @@ bool getLoadcellError() {
 }
 
 
-#if defined(ESP8266)  
+#if defined(ESP8266) || defined(ESP32)
 
 void writeModelData(JsonObject object) {
   char buff[8];
@@ -1165,7 +1170,11 @@ bool httpsUpdate(uint8_t command) {
   HTTPClient https;
   https.setUserAgent("cgscale");
   https.setRedirectLimit(0);
-  https.setFollowRedirects(true);
+  #if defined(ESP32)
+    https.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  #else
+    https.setFollowRedirects(true);
+  #endif
 
   String url = "https://" + String(HOST) + String(URL);
   if (https.begin(httpsClient, url)) {
@@ -1216,7 +1225,7 @@ void setup() {
   printConsole(T_BOOT, "startup CG scale V" + String(CGSCALE_VERSION));
 
   // init filesystem
-  // SPIFFS.begin();
+  SPIFFS.begin();
   EEPROM.begin(EEPROM_SIZE);
   printConsole(T_BOOT, "init filesystem");
 #endif
@@ -1262,7 +1271,7 @@ void setup() {
     }
   }
 
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
   if (EEPROM.read(P_SSID_STA) != 0xFF) {
     EEPROM.get(P_SSID_STA, ssid_STA);
   }
@@ -1323,7 +1332,7 @@ void setup() {
 
   getLoadcellError();
 
-#if defined(ESP8266) 
+#if defined(ESP8266) || defined(ESP32) 
 
   printConsole(T_BOOT, "Wifi: STA mode - connecing with: " + String(ssid_STA));
 
@@ -1369,7 +1378,8 @@ void setup() {
   hostname = ssid_AP;
   hostname.replace(" ", "");
   hostname.toLowerCase();
-  if (!MDNS.begin(hostname, WiFi.localIP())) {
+  //if (!MDNS.begin(hostname, WiFi.localIP())) {
+  if (!MDNS.begin(hostname.c_str())) {  
     hostname = "mDNS failed";
     printConsole(T_ERROR, "Wifi: " + hostname);
   } else {
@@ -1481,9 +1491,9 @@ void setup() {
 
 void loop() {
 
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
 
-#if ENABLE_MDNS
+#if ENABLE_MDNS && defined(ESP8266)
   MDNS.update();
 #endif
 
@@ -1530,7 +1540,7 @@ void loop() {
       // CG longitudinal axis
       CG_length = ((weightLoadCell[LC2] * model.distance[X2]) / weightTotal) + model.distance[X1];
 
-#if defined(ESP8266) 
+#if defined(ESP8266) || defined(ESP32) 
       if (model.mechanicsType == 2) {
         CG_length = ((weightLoadCell[LC2] * model.distance[X2]) / weightTotal) - model.distance[X1];
       } else if (model.mechanicsType == 3) {
@@ -1678,9 +1688,9 @@ void loop() {
 #if defined(ESP8266) || defined(ESP32) 
               EEPROM.commit();
               // delete json model file
-              /*if (SPIFFS.exists(MODEL_FILE)) {
+              if (SPIFFS.exists(MODEL_FILE)) {
                 SPIFFS.remove(MODEL_FILE);
-              }*/
+              }
 #endif
               resetCPU();
             }
@@ -1766,7 +1776,7 @@ void loop() {
             Serial.print(MENU_SHOW_ACTUAL);
             Serial.print(F(" - Show actual values\n"));
 
-#if defined(ESP8266) 
+#if defined(ESP8266) || defined(ESP32)
             Serial.print(MENU_WIFI_INFO);
             Serial.print(F(" - Show WiFi network info\n"));
 #endif
@@ -1881,7 +1891,7 @@ void loop() {
           }
           Serial.println();
           break;
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
         case MENU_WIFI_INFO:
           {
             Serial.println("\n\n********************************************\nWiFi network information\n");
@@ -1907,18 +1917,33 @@ void loop() {
                 Serial.print(WiFi.RSSI(i));
                 Serial.print("dBm) ");
                 switch (WiFi.encryptionType(i)) {
-                  case ENC_TYPE_WEP:
+                  case WIFI_AUTH_WEP:
                     Serial.print("WEP");
                     break;
-                  case ENC_TYPE_TKIP:
+                  case WIFI_AUTH_WPA_PSK:
                     Serial.print("WPA");
                     break;
-                  case ENC_TYPE_CCMP:
+                  case WIFI_AUTH_WPA2_PSK:
                     Serial.print("WPA2");
                     break;
-                  case ENC_TYPE_AUTO:
-                    Serial.print("Auto");
+                  case WIFI_AUTH_WPA_WPA2_PSK:
+                    Serial.print("WPA WPA2");
                     break;
+                  case WIFI_AUTH_WPA2_ENTERPRISE:
+                    Serial.print("WPA2 ENTERPRISE");
+                    break;
+                  case  WIFI_AUTH_WPA3_PSK:
+                    Serial.print("WPA3");
+                    break;
+                  case  WIFI_AUTH_WPA2_WPA3_PSK:
+                    Serial.print("WPA2 WPA3");
+                    break;
+                  case WIFI_AUTH_WAPI_PSK:
+                    Serial.print("WAPI");
+                    break;
+                  case WIFI_AUTH_MAX:
+                    Serial.print("MAX");
+                    break;      
                 }
                 Serial.println("");
               }

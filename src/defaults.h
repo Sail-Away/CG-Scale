@@ -44,7 +44,7 @@ enum {
   MENU_BATTERY_MEASUREMENT,
   MENU_BATTERY_CELLS,
   MENU_SHOW_ACTUAL,
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
   MENU_WIFI_INFO,
 #endif
   MENU_RESET_DEFAULT
@@ -62,7 +62,7 @@ enum {
 };
 
 
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
 // https update
 enum {
   PROBE_UPDATE,
@@ -139,9 +139,9 @@ const unsigned char CGtransImage[] U8X8_PROGMEM = {
 
 // battery types
 #if ENABLE_PERCENTLIST
-#define NUMBER_BAT_TYPES     6
+  #define NUMBER_BAT_TYPES     6
 #else
-#define NUMBER_BAT_TYPES     2
+  #define NUMBER_BAT_TYPES     2
 #endif
 
 enum {
